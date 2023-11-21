@@ -1,12 +1,32 @@
-import { createSlice } from "@reduxjs/toolkit";
-import cartItems from "../../cartItems";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
+import { openModal } from "../modal/modalSlice";
+
+const url = "https://course-api.com/react-useReducer-cart-project";
 
 const initialState = {
-  cartItems: cartItems,
-  amount: cartItems.length,
-  total: getTotals(cartItems),
+  cartItems: [],
+  amount: 0,
+  total: 0,
   isLoading: true,
 };
+
+export const getCartItems = createAsyncThunk(
+  "cart/getCartItems",
+  async (ejemplo, thunkAPI) => {
+    // console.log(ejemplo);
+    // * thunkAPI contiene el dispatch y el getState
+    // console.log(thunkAPI.getState());
+    // thunkAPI.dispatch(openModal());
+    try {
+      const response = await axios.get(url);
+      return response.data;
+    } catch (error) {
+      // console.log(error.response);
+      return thunkAPI.rejectWithValue("something went wrong");
+    }
+  }
+);
 
 const cartReducer = createSlice({
   name: "cart",
@@ -40,6 +60,7 @@ const cartReducer = createSlice({
       state.cartItems = state.cartItems.filter((item) => {
         if (item.id === payload) {
           if (item.amount === 1) {
+            state.amount--;
             return false;
           }
           item.amount--;
@@ -49,6 +70,23 @@ const cartReducer = createSlice({
       });
       state.total = getTotals(state.cartItems);
     },
+  },
+
+  extraReducers: (builder) => {
+    builder
+      .addCase(getCartItems.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(getCartItems.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.cartItems = action.payload;
+        state.amount = action.payload.length;
+        state.total = getTotals(action.payload);
+      })
+      .addCase(getCartItems.rejected, (state, action) => {
+        console.log(action.payload);
+        state.isLoading = false;
+      });
   },
 });
 
